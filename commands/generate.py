@@ -19,7 +19,11 @@
 import os
 import sys
 import shutil
-import imp
+if sys.version_info[:2] >= (3,12):
+    import importlib
+    import importlib.util
+else:
+    import imp
 import subprocess
 
 import src

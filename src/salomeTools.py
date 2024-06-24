@@ -26,7 +26,6 @@ This file is the main API file for salomeTools
 """
 
 import sys
-
 # exit OKSYS and KOSYS seems equal on linux or windows
 _OKSYS = 0  # OK
 _KOSYS = 1  # KO
@@ -45,7 +44,11 @@ ERROR: 'salomeTools.py' is not main command entry (CLI) for salomeTools.
 import os
 import re
 import tempfile
-import imp
+if sys.version_info[:2] >= (3,12):
+    import importlib
+    import importlib.util
+else:
+    import imp
 import types
 import gettext
 import traceback
@@ -361,8 +364,13 @@ class Sat(object):
                     continue
 
             # load the module that has name nameCmd in dirPath
-            (file_, pathname, description) = imp.find_module(nameCmd, [dirPath])
-            module = imp.load_module(nameCmd, file_, pathname, description)
+            if sys.version_info[:2] >= (3,12):
+                spec = importlib.machinery.PathFinder().find_spec(nameCmd, [dirPath])
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+            else:
+                (file_, pathname, description) = imp.find_module(nameCmd, [dirPath])
+                module = imp.load_module(nameCmd, file_, pathname, description)
             
             def run_command(args='',
                             options=None,
@@ -609,7 +617,12 @@ class Sat(object):
         # Try to execute the script, catch the exception if it fails
         try:
             # import the module (in the sense of python)
-            pymodule = imp.load_source(cmd_name, hook_script_path)
+            if sys.version_info[:2] >= (3,12):
+                spec = importlib.machinery.PathFinder().find_spec(cmd_name, hook_script_path)
+                pymodule = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(pymodule)
+            else:
+                pymodule = imp.load_source(cmd_name, hook_script_path)
             
             # format a message to be printed at hook execution
             msg = src.printcolors.printcWarning(_("Run hook script"))
@@ -676,8 +689,13 @@ class Sat(object):
             raise src.SatException(_("Command '%s' does not exist") % module)
 
         # load the module
-        (file_, pathname, description) = imp.find_module(module, [cmdsdir])
-        module = imp.load_module(module, file_, pathname, description)
+        if sys.version_info[:2] >= (3,12):
+            spec = importlib.util.find_spec(module)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        else:
+            (file_, pathname, description) = imp.find_module(module, [cmdsdir])
+            module = imp.load_module(module, file_, pathname, description)
         return module
 
 ##################################################################

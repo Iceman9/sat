@@ -30,7 +30,10 @@ import sys
 import datetime
 import shutil
 import string
-import imp
+if sys.version_info[:2] >= (3,12):
+    import importlib
+else:
+    import imp
 import subprocess
 import glob
 import pprint as PP
