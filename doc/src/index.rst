@@ -30,10 +30,10 @@ The following features should be highlighted:
  * **overwriting** the configuration in command line: it allows users setting easily their own preferences or options
  
 SAT uses **python**, and many of its strength come from its power and straightforwardness. It is compatible with both python2 and python3 versions.
-SAT is a Command Line Interface (CLI_) based on python language. It is a suite of commands, which are detailed later in this documentation.
+SAT is a Command Line Interface (CLI_) based on python language. It is a suite of commands, which are detailed in this documentation.
 These commands are used to perform the operations on the application. SAT enables command completion by sourcing the provided complete_sat.sh script.
 
-Like similar tool, SAT doesn't like modified environments, as this can cause conflicts while compiling products or using applications. It is recommended that SAT users run with a **clean environment**, especially for PATH, LD_LIBRARY_PATH and PYTHONPATH. ~/.bashrc file should be as thin as possible!
+Like similar tools, SAT doesn't like modified environments, as this can cause conflicts while compiling products or using applications. It is recommended that SAT users run with a **clean environment**, especially for PATH, LD_LIBRARY_PATH and PYTHONPATH. ~/.bashrc file should be as thin as possible!
 
 
 Documentation
@@ -75,6 +75,7 @@ Release Notes
 .. toctree::
    :maxdepth: 1
 
+   Release Notes 5.9.0 <release_notes/release_notes_5.9.0>
    Release Notes 5.8.0 <release_notes/release_notes_5.8.0>
    Release Notes 5.7.0 <release_notes/release_notes_5.7.0>
    Release Notes 5.6.0 <release_notes/release_notes_5.6.0>
