@@ -1240,6 +1240,13 @@ def create_project_for_src_package(config, tmp_working_dir, with_vcs, with_ftp):
         ff.write("\n# Where to search for licences\n")
         ff.write(licence_path)
 
+    # finally add git repositories associated to this project
+    for project in config.PROJECTS.projects:
+        if 'git_server' in config.PROJECTS.projects[project]['git_info']:
+            git_servers=cfg.PROJECTS.projects[project]['git_info']['git_server']
+            for git_server in git_servers:
+                print(git_server)
+    if 'git_info' in config.PROJECT and "git_server" in config.PROJECT:
 
     ff.close()
 

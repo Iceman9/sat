@@ -800,15 +800,16 @@ def get_products_list(options, cfg, logger):
         products=[]
         for product in cfg.APPLICATION.products.keys():
             prod_info = get_product_config(cfg, product)
+            git_server = None
             if prod_info is None:
                 logger.error("%s does not have associated information" % (product))
                 continue
             if 'get_source' in prod_info and prod_info.get_source == 'git':
                 git_server = src.get_git_server(cfg,logger)
-            else:
+            elif 'default_git_server_dev' in cfg.VARS.keys():
                 git_server =  cfg.VARS['default_git_server_dev']
 
-            if src.product.product_is_not_opensource(prod_info) and not src.git_server_has_all_repositories(cfg, git_server):
+            if git_server is not None and src.product.product_is_not_opensource(prod_info) and not src.git_server_has_all_repositories(cfg, git_server):
                 logger.warning("%s is a closed-source software and is not available on %s" % (product, git_server))
                 logger.flush()
                 continue
