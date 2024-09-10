@@ -18,6 +18,7 @@ DISTRIBUTIONS :
   "ubuntu": "UB"
   "kde neon" :  "UB"
   "tuxedo os" : "UB"
+  "linux mint": "UB"
   "opensuse":"OS"
   "Windows" : "W"
 }
