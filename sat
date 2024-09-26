@@ -26,6 +26,9 @@ import os
 import sys
 import platform
 
+if sys.version_info[:2] >= (3,12):
+    import warnings
+    warnings.filterwarnings('ignore')
 # exit OKSYS and KOSYS seems equal on linux or windows
 OKSYS = 0  # OK
 KOSYS = 1  # KO
