@@ -118,13 +118,12 @@ def git_describe(repo_path):
         return tag_description
 
 
-def git_extract(from_what, tag, git_options, git_commands, where, logger, environment=None):
+def git_extract(from_what, tag, git_options, where, logger, environment=None):
   '''Extracts sources from a git repository.
 87
   :param from_what str: The remote git repository.
   :param tag str: The tag.
   :param git_options str: git options
-  :param git_commands array: git command lines
   :param where str: The path where to extract.
   :param logger Logger: The logger instance to use.
   :param environment src.environment.Environ: The environment to source when extracting.
@@ -138,88 +137,47 @@ def git_extract(from_what, tag, git_options, git_commands, where, logger, enviro
   if tag == "master" or tag == "HEAD":
     if src.architecture.is_windows():
       cmd = "git clone %(git_options)s %(remote)s %(where)s"
-      cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + ")"
-      if len(git_commands) > 0:
-        cmd+= "\n" + "cd %(where)s"
-        for git_command in git_commands:
-          cmd+= "\n" + git_command
-          cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-          cmd+= "\n" + "  exit 1"
-          cmd+= "\n" + ")"
     else:
-      cmd = "\n" + "set -x"
-      cmd+= "\n" + "git clone %(git_options)s %(remote)s %(where)s"
-      cmd+= "\n" + "if [ $? -ne 0 ]; then"
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + "fi"
-      cmd+= "\n" + "touch -d \"$(git --git-dir=%(where_git)s  log -1 --format=date_format)\" %(where)s"
-      cmd+= "\n" + "if [ $? -ne 0 ]; then"
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + "fi"
-      if len(git_commands) > 0:
-        cmd+= "\n" + "cd %(where)s"
-        for git_command in git_commands:
-            cmd+= "\n" + git_command
-            cmd+= "\n" + "if [ $? -ne 0 ]; then"
-            cmd+= "\n" + "  exit 1"
-            cmd+= "\n" + "fi"
+      cmd = r"""
+set -x
+git clone %(git_options)s %(remote)s %(where)s
+res=$?
+if [ $res -eq 0 ]; then
+  touch -d "$(git --git-dir=%(where_git)s  log -1 --format=date_format)" %(where)s
+fi
+exit $res
+"""
+    cmd = cmd % {'git_options': git_options, 'remote': from_what, 'tag': tag, 'where': str(where), 'where_git': where_git}
   else:
+    # NOTICE: this command only works with recent version of git
+    #         because --work-tree does not work with an absolute path
     if src.architecture.is_windows():
-      cmd = "rmdir /S /Q %(where)s"
-      cmd+= "\n" + "git clone %(git_options)s %(remote)s %(where)s"
-      cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + ")"
-      cmd+= "\n" + "git --git-dir=%(where_git)s --work-tree=%(where)s checkout %(tag)s"
-      cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + ")"
-      if len(git_commands) > 0:
-        cmd+= "\n" + "cd %(where)s"
-        for git_command in git_commands:
-          cmd+= "\n" + git_command
-          cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-          cmd+= "\n" + "  exit 1"
-          cmd+= "\n" + ")"
+      cmd = "rmdir /S /Q %(where)s && git clone %(git_options)s %(remote)s %(where)s && git --git-dir=%(where_git)s --work-tree=%(where)s checkout %(tag)s"
     else:
-      cmd = "\n" + "set -x"
-      cmd+= "\n" + "git clone %(git_options)s %(remote)s %(where)s"
-      cmd+= "\n" + "if [ $? -ne 0 ]; then"
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + "fi"
-      cmd+= "\n" + "git --git-dir=%(where_git)s --work-tree=%(where)s checkout %(tag)s"
-      cmd+= "\n" + "if [ $? -ne 0 ]; then"
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + "fi"
-      if len(git_commands) > 0:
-        cmd+= "\n" + "cd %(where)s"
-        for git_command in git_commands:
-            cmd+= "\n" + git_command
-            cmd+= "\n" + "if [ $? -ne 0 ]; then"
-            cmd+= "\n" + "  exit 1"
-            cmd+= "\n" + "fi"
-      cmd+= "\n" + "git --git-dir=%(where_git)s status | grep HEAD"
-      cmd+= "\n" + "if [ $? -ne 0 ]; then"
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + "fi"
-      cmd+= "\n" + "touch -d \"$(git --git-dir=%(where_git)s  log -1 --format=date_format)\" %(where)s"
-      cmd+= "\n" + "if [ $? -ne 0 ]; then"
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + "fi"
-      cmd+= "\n" + "exit 0"
-  aDict = {'%(git_options)s': git_options,
-           '%(remote)s'   : from_what,
-           '%(where)s'    : str(where),
-           '%(tag)s'      : tag,
-           '%(where_git)s': where_git
-           }
-  for k, v in aDict.items():
-      cmd= cmd.replace(k,v)
+# for sat compile --update : changes the date of directory, only for branches, not tag
+      cmd = r"""
+set -x
+rm -rf %(where)s
+git clone %(git_options)s %(remote)s %(where)s && \
+git --git-dir=%(where_git)s --work-tree=%(where)s checkout %(tag)s
+res=$?
+git --git-dir=%(where_git)s status | grep HEAD
+if [ $res -eq 0 -a $? -ne 0 ]; then
+  touch -d "$(git --git-dir=%(where_git)s  log -1 --format=date_format)" %(where)s
+fi
+exit $res
+"""
+    cmd = cmd % {'git_options': git_options,
+                 'remote': from_what,
+                 'tag': tag,
+                 'where': str(where),
+                 'where_git': where_git}
+
+
   cmd=cmd.replace('date_format', '"%ai"')
   logger.logTxtFile.write("\n" + cmd + "\n")
   logger.logTxtFile.flush()
+
   DBG.write("cmd", cmd)
   # git commands may fail sometimes for various raisons 
   # (big module, network troubles, tuleap maintenance)
@@ -239,13 +197,12 @@ def git_extract(from_what, tag, git_options, git_commands, where, logger, enviro
   return rc.isOk()
 
 
-def git_extract_sub_dir(from_what, tag, git_options, git_commands, where, sub_dir, logger, environment=None):
+def git_extract_sub_dir(from_what, tag, git_options, where, sub_dir, logger, environment=None):
   '''Extracts sources from a subtree sub_dir of a git repository.
 
   :param from_what str: The remote git repository.
   :param tag str: The tag.
   :param git_options str: git options
-  :param git_commands array: git command lines
   :param where str: The path where to extract.
   :param sub_dir str: The relative path of subtree to extract.
   :param logger Logger: The logger instance to use.
@@ -262,73 +219,40 @@ def git_extract_sub_dir(from_what, tag, git_options, git_commands, where, sub_di
   if os.path.isdir(strWhere):
     logger.error("do not override existing directory: %s" % strWhere)
     return False
-  aDict = {'%(git_options)s': git_options,
-           '%(remote)s'     : from_what,
-           '%(tag)s'        : tag,
-           '%(sub_dir)s'    : sub_dir,
-           '%(where)s'      : strWhere,
-           '%(parentWhere)s': parentWhere,
-           '%(tmpWhere)s'   : tmpWhere
+  aDict = {'git_options': git_options,
+           'remote': from_what,
+           'tag': tag,
+           'sub_dir': sub_dir,
+           'where': strWhere,
+           'parentWhere': parentWhere,
+           'tmpWhere': tmpWhere,
            }
   DBG.write("git_extract_sub_dir", aDict)
   if not src.architecture.is_windows():
-    cmd = "\n" + "set -x"
-    cmd+= "\n" + "export tmpDir=%(tmpWhere)s"
-    cmd+= "\n" + "rm -rf $tmpDir"
-    cmd+= "\n" + "git clone %(git_options)s %(remote)s $tmpDir"
-    cmd+= "\n" + "if [ $? -ne 0 ]; then"
-    cmd+= "\n" + "  exit 1"
-    cmd+= "\n" + "fi"
-    cmd+= "\n" + "cd $tmpDir"
-    cmd+= "\n" + "git checkout %(tag)s"
-    cmd+= "\n" + "if [ $? -ne 0 ]; then"
-    cmd+= "\n" + "  exit 1"
-    cmd+= "\n" + "fi"
-    if len(git_commands) > 0:
-      for git_command in git_commands:
-        cmd+= "\n" + git_command
-        cmd+= "\n" + "if [ $? -ne 0 ]; then"
-        cmd+= "\n" + "  exit 1"
-        cmd+= "\n" + "fi"
-    cmd+= "\n" + "mv %(sub_dir)s %(where)s"
-    cmd+= "\n" + "git log -1 > %(where)s/README_git_log.txt"
-    cmd+= "\n" + "if [ $? -ne 0 ]; then"
-    cmd+= "\n" + "  exit 1"
-    cmd+= "\n" + "fi"
-    cmd+= "\n" + "rm -rf ${tmpDir}"
+    cmd = r"""
+set -x
+export tmpDir=%(tmpWhere)s && \
+rm -rf $tmpDir
+git clone %(git_options)s %(remote)s $tmpDir && \
+cd $tmpDir && \
+git checkout %(tag)s && \
+mv %(sub_dir)s %(where)s && \
+git log -1 > %(where)s/README_git_log.txt && \
+rm -rf $tmpDir
+""" % aDict
   else:
-    cmd+= "\n" + "set tmpDir=%(tmpWhere)s"
-    cmd+= "\n" + "rmdir /S /Q %tmpDir%"
-    cmd+= "\n" + "git clone %(git_options)s %(remote)s %tmpDir%"
-    cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-    cmd+= "\n" + "  exit 1"
-    cmd+= "\n" + ")"
-    cmd+= "\n" + "cd %tmpDir%"
-    cmd+= "\n" + "git checkout %(tag)s"
-    cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-    cmd+= "\n" + "  exit 1"
-    cmd+= "\n" + ")"
-    if len(git_commands) > 0:
-      for git_command in git_commands:
-        cmd+= "\n" + git_command
-        cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-        cmd+= "\n" + "  exit 1"
-        cmd+= "\n" + ")"
-    cmd+= "\n" + "mv %(sub_dir)s %(where)s"
-    cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-    cmd+= "\n" + "  exit 1"
-    cmd+= "\n" + ")"
-    cmd+= "\n" + "git log -1 > %(where)s\\README_git_log.txt"
-    cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-    cmd+= "\n" + "  exit 1"
-    cmd+= "\n" + ")"
-    cmd+= "\n" + "rmdir /S /Q %tmpDir%"
-    cmd+= "\n" + "if NOT %ERRORLEVEL% == 0 ("
-    cmd+= "\n" + "  exit 1"
-    cmd+= "\n" + ")"
+    cmd = r"""
 
-  for k, v in aDict.items():
-      cmd= cmd.replace(k,v)
+set tmpDir=%(tmpWhere)s && \
+rmdir /S /Q %tmpDir%
+git clone %(git_options)s %(remote)s %tmpDir% && \
+cd %tmpDir% && \
+git checkout %(tag)s && \
+mv %(sub_dir)s %(where)s && \
+git log -1 > %(where)s\\README_git_log.txt && \
+rmdir /S /Q %tmpDir%
+""" % aDict
+
   DBG.write("cmd", cmd)
 
   for nbtry in range(0,3): # retries case of network problem

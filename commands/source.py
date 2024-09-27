@@ -140,9 +140,6 @@ def get_source_from_git(config,
     git_options= ''
     if "git_options" in product_info.git_info:
         git_options = product_info.git_info.git_options
-    git_commands= []
-    if "git_commands" in product_info.git_info:
-        git_commands = product_info.git_info.git_commands
 
     sub_dir = None
     # what do we do with git tree structure and history
@@ -156,13 +153,13 @@ def get_source_from_git(config,
     if sub_dir is None:
       # Call the system function that do the extraction in git mode
       retcode = src.system.git_extract(repo_git,
-                                   product_info.git_info.tag, git_options, git_commands,
+                                   product_info.git_info.tag, git_options,
                                    source_dir, logger, environ)
     else:
       # Call the system function that do the extraction of a sub_dir in git mode
       logger.write("sub_dir:%s " % sub_dir, 3)
       retcode = src.system.git_extract_sub_dir(repo_git,
-                                   product_info.git_info.tag,git_options, git_commands,
+                                   product_info.git_info.tag,git_options,
                                    source_dir, sub_dir, logger, environ)
 
 
