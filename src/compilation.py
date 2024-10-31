@@ -494,6 +494,10 @@ CC=\\"hack_libtool\\"%g" libtool'''
         self.build_environ.set("DIST_VERSION", self.config.VARS.dist_version)
         self.build_environ.set("DIST", self.config.VARS.dist)
         self.build_environ.set("VERSION", self.product_info.version)
+        single_install_dir = os.path.join(self.config.APPLICATION.workdir,
+                                          self.config.INTERNAL.config.install_dir,
+                                          self.config.INTERNAL.config.single_install_dir)
+        self.build_environ.set("SINGLE_INSTALL_DIR", single_install_dir)
         # if product is in hpc mode, set SAT_HPC to 1 
         # in order for the compilation script to take it into account
         if src.product.product_is_hpc(self.product_info):
