@@ -33,7 +33,7 @@ AVAILABLE_VCS = ['git', 'svn', 'cvs']
 
 CONFIG_FILENAME = "sat-config-" # trace product depends version(s)
 PRODUCT_FILENAME = "sat-product-" # trace product compile config
-config_expression = "^config-\d+$"
+config_expression = r"^config-\d+$"
 
 def get_product_config(config, product_name, with_install_dir=True):
     """Get the specific configuration of a product from the global configuration

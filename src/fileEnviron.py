@@ -298,7 +298,7 @@ class TclFileEnviron(FileEnviron):
         if sep==os.pathsep:
             self.output.write('append-path  %s   %s\n' % (key, value))
         else:
-            self.output.write('append-path --delim=\%c %s   %s\n' % (sep, key, value))
+            self.output.write(r'append-path --delim=\%c %s   %s\n' % (sep, key, value))
 
     def prepend_value(self, key, value, sep=os.pathsep):
         """prepend value to key using sep
@@ -310,7 +310,7 @@ class TclFileEnviron(FileEnviron):
         if sep==os.pathsep:
             self.output.write('prepend-path  %s   %s\n' % (key, value))
         else:
-            self.output.write('prepend-path --delim=\%c %s   %s\n' % (sep, key, value))
+            self.output.write(r'prepend-path --delim=\%c %s   %s\n' % (sep, key, value))
 
         
 class BashFileEnviron(FileEnviron):

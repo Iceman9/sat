@@ -139,7 +139,7 @@ def get_nb_proc(product_info, config, make_option):
     if "-j" in make_option:
         oExpr = re.compile("-j[0-9]+")
         found = oExpr.search(make_option)
-        opt_nb_proc = int(re.findall('\d+', found.group())[0])
+        opt_nb_proc = int(re.findall(r'\d+', found.group())[0])
         new_make_option = make_option.replace(found.group(), "")
     
     nbproc = -1

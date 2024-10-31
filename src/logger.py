@@ -34,8 +34,8 @@ import xmlManager
 
 import src.debug as DBG
 
-log_macro_command_file_expression = "^[0-9]{8}_+[0-9]{6}_+.*\.xml$"
-log_all_command_file_expression = "^.*[0-9]{8}_+[0-9]{6}_+.*\.xml$"
+log_macro_command_file_expression = r"^[0-9]{8}_+[0-9]{6}_+.*\.xml$"
+log_all_command_file_expression = r"^.*[0-9]{8}_+[0-9]{6}_+.*\.xml$"
 
 verbose = True # cvw TODO
 

@@ -131,7 +131,7 @@ class TemplateSettings:
     def get_pyconf_parameters(self):
         if len(self.pyconf) == 0:
             return []
-        return re.findall("%\((?P<name>\S[^\)]*)", self.pyconf)
+        return re.findall(r"%\((?P<name>\S[^\)]*)", self.pyconf)
 
     ##
     # Check if the file needs to be parsed.
@@ -408,7 +408,7 @@ def get_template_info(config, template_name, logger):
                      "parameter: %s" % tsettings.file_subst, 3)
         retcode = 1
     
-    reexp = tsettings.delimiter_char.replace("$", "\$") + "{(?P<name>\S[^}]*)"
+    reexp = tsettings.delimiter_char.replace("$", r"\$") + r"{(?P<name>\S[^}]*)"
     pathlen = len(tmpdir) + 1
     for root, __, files in os.walk(tmpdir):
         for fic in files:
