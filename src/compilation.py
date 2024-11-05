@@ -237,36 +237,6 @@ class Builder:
         else:
             return 1
 
-    def hack_libtool(self):
-        if not os.path.exists(str(self.build_dir + 'libtool')):
-            return
-
-        lf = open(os.path.join(str(self.build_dir), "libtool"), 'r')
-        for line in lf.readlines():
-            if 'hack_libtool' in line:
-                return
-
-        # fix libtool by replacing CC="<compil>" with hack_libtool function
-        hack_command='''sed -i "s%^CC=\\"\(.*\)\\"%hack_libtool() { \\n\\
-if test \\"\$(echo \$@ | grep -E '\\\\\\-L/usr/lib(/../lib)?(64)? ')\\" == \\\"\\\" \\n\\
-  then\\n\\
-    cmd=\\"\\1 \$@\\"\\n\\
-  else\\n\\
-    cmd=\\"\\1 \\"\`echo \$@ | sed -r -e 's|(.*)-L/usr/lib(/../lib)?(64)? (.*)|\\\\\\1\\\\\\4 -L/usr/lib\\\\\\3|g'\`\\n\\
-  fi\\n\\
-  \$cmd\\n\\
-}\\n\\
-CC=\\"hack_libtool\\"%g" libtool'''
-
-        self.log_command(hack_command)
-        subprocess.call(hack_command,
-                        shell=True,
-                        cwd=str(self.build_dir),
-                        env=self.build_environ.environ.environ,
-                        stdout=self.logger.logTxtFile,
-                        stderr=subprocess.STDOUT)
-
-
     ##
     # Runs make to build the module.
     def make(self, nb_proc, make_opt=""):
