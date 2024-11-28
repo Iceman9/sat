@@ -493,7 +493,7 @@ def check_system_pkg(check_cmd,pkg):
         )  # we don't specify in pyconf the exact name because of version numbers
         p = SP.Popen(cmd_is_package_installed, stdout=SP.PIPE, stderr=FNULL)
         try:
-            output = SP.check_output(["grep", "^ii"], stdin=p.stdout)
+            output = SP.check_output(["grep", "-E", "^[ii|ri]"], stdin=p.stdout)
             msg_status = src.printcolors.printcSuccess("OK")
         except SP.CalledProcessError:
             msg_status = src.printcolors.printcError("KO")
