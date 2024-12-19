@@ -96,6 +96,8 @@ def get_source_from_git(config,
     if 'git_info' in  product_info and 'repositories' in product_info.git_info:
         if git_server in product_info.git_info.repositories.keys(): # keys are git servers
             repo_git = product_info.git_info.repositories[git_server]
+        elif 'default' in product_info.git_info.repositories.keys(): # keys are git servers
+            repo_git = product_info.git_info.repositories.default
         elif 'properties' in product_info and 'is_opensource' in product_info.properties and product_info.properties.is_opensource == 'yes' :
             for git_server in product_info.git_info.repositories.keys():
                 if git_server in config.VARS.opensource_git_servers:
