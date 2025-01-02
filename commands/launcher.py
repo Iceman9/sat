@@ -49,10 +49,12 @@ parser.add_option('', 'no_path_init', 'boolean', 'no_path_init',
                    "By default only PATH is not reinitialised (its value is inherited from "
                    "user's environment)\n\tUse no_path_init option to suppress the reinitilisation"
                    " of every paths (LD_LIBRARY_PATH, PYTHONPATH, ...)"))
+parser.add_option('', 'with-extra.env.d', 'boolean', 'with_extra_env_d', _('Optional: generate one environment per product'), False)
 
 
 def generate_launch_file(config,
                          logger,
+                         with_extra_env_d,
                          launcher_name,
                          pathlauncher,
                          path_exe,
@@ -61,7 +63,7 @@ def generate_launch_file(config,
                          additional_env={},
                          no_path_init=False):
     '''Generates the launcher file.
-    
+
     :param config Config: The global configuration
     :param logger Logger: The logger instance to use for the display 
                           and logging
@@ -76,10 +78,19 @@ def generate_launch_file(config,
     :return: The launcher file path.
     :rtype: str
     '''
+
     # build the launcher path, delete it if it exists
     filepath = os.path.join(pathlauncher, launcher_name)
     if os.path.exists(filepath):
         os.remove(filepath)
+
+    # Ensure that extra.env.d is not present.
+    extra_env_dir = os.path.join(pathlauncher, "extra.env.d")
+    if os.path.exists(extra_env_dir):
+        shutil.rmtree(extra_env_dir)
+    if with_extra_env_d:
+        os.makedirs(extra_env_dir)
+
     kernel_root_dir=None
     cmd=None
     salome_application_name=None
@@ -168,11 +179,20 @@ def generate_launch_file(config,
         logger.write("  %s\n" % src.printcolors.printcLabel(filepath), 1)
     
     # Write the launcher
-    writer.write_env_file(filepath, 
-                          False,  # for launch
-                          shell,
-                          additional_env=additional_env,
-                          no_path_init=no_path_init)
+    if with_extra_env_d:
+        writer.write_env_d_files(file_dir=pathlauncher,
+                                 file_name=launcher_name,
+                                 extra_env_dir=extra_env_dir,
+                                 forBuild=False,  # for launch
+                                 shell=shell,
+                                 additional_env=additional_env,
+                                 no_path_init=no_path_init)
+    else:
+        writer.write_env_file(filepath,
+                              forBuild=False,  # for launch
+                              shell=shell,
+                              additional_env=additional_env,
+                              no_path_init=no_path_init)
     
 
     # ... and append the launch of the exe 
@@ -190,7 +210,6 @@ def generate_launch_file(config,
              stat.S_IXGRP |
              stat.S_IXOTH)
     return filepath
-
 
 def generate_catalog(machines, config, logger):
     """Generates an xml catalog file from a list of machines.
@@ -347,10 +366,13 @@ def run(args, runner, logger):
     # option -e has precedence over section profile
     if not options.path_exe and src.get_launcher_exe(runner.cfg):
         options.path_exe=src.get_launcher_exe(runner.cfg)
+    if options.path_exe and options.with_extra_env_d:
+        raise src.SatException(_(" --exe option does not support --with-extra-env.d option"))
 
     # Generate the launcher
     generate_launch_file(runner.cfg,
                          logger,
+                         options.with_extra_env_d,
                          launcher_name,
                          launcher_path,
                          options.path_exe,

@@ -12,8 +12,6 @@
 .. _CMake: https://cmake.org/
 .. _Python: https://docs.python.org/
 .. _ParaView: http://www.paraview.org
-.. _Anaconda: https://docs.continuum.io/anaconda/pkg-docs#
-.. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _Git: https://git-scm.com
 .. _SatCheatSheet: ../sat-cheat-sheet.pdf
 .. _CLI: https://en.wikipedia.org/wiki/Command-line_interface

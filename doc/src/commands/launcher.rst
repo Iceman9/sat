@@ -29,6 +29,10 @@ Usage
     
   In this case the launcher does not initialise the path variables (the default is to do it only for PATH, not for LD_LIBRARY_PATH, PYTHONPATH, etc).
 
+* Set a launcher with all products environment files in ``extra.env.d`` subdirectory: ::
+
+    sat launcher <application> --with-extra.env.d
+
 * Create a generic launcher, which sets the environment (bash or bat) and call the exe given as argument: ::
 
     sat launcher <application> -e INSTALL/SALOME/bin/salome/salome.py -n salome.sh 

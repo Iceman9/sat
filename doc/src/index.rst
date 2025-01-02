@@ -75,6 +75,7 @@ Release Notes
 .. toctree::
    :maxdepth: 1
 
+   Release Notes 5.9.1 <release_notes/release_notes_5.9.1>
    Release Notes 5.9.0 <release_notes/release_notes_5.9.0>
    Release Notes 5.8.0 <release_notes/release_notes_5.8.0>
    Release Notes 5.7.0 <release_notes/release_notes_5.7.0>

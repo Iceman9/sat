@@ -143,6 +143,7 @@ parser.add_option('', 'add_files', 'list2', 'add_files',
 parser.add_option('', 'without_properties', 'properties', 'without_properties',
     _('Optional: Filter the products by their properties.\n\tSyntax: '
       '--without_properties <property>:<value>'))
+parser.add_option('', 'with-extra.env.d', 'boolean', 'with_extra_env_d', _('Optional: generate one environment per product'), False)
 
 
 def add_files(tar, name_archive, d_content, logger, f_exclude=None):
@@ -235,6 +236,7 @@ def exclude_VCS_and_extensions(tarinfo):
 
 def produce_relative_launcher(config,
                               logger,
+                              with_extra_env_d,
                               file_dir,
                               file_name,
                               binaries_dir_name):
@@ -316,83 +318,52 @@ def produce_relative_launcher(config,
 
     filepath = os.path.join(file_dir, file_name)
     # Write
-    writer.write_env_file(filepath,
-                          False,  # for launch
-                          "cfgForPy",
-                          additional_env=additional_env,
-                          no_path_init=False,
-                          for_package = binaries_dir_name)
+    if with_extra_env_d:
+        # Ensure that extra.env.d is not present.
+        extra_env_dir = os.path.join(file_dir, "extra.env.d")
+        if os.path.exists(extra_env_dir):
+            shutil.rmtree(extra_env_dir)
+        os.makedirs(extra_env_dir)
+        writer.write_env_d_files(file_dir=file_dir,
+                                 file_name=file_name,
+                                 extra_env_dir=extra_env_dir,
+                                 forBuild=False,  # for launch
+                                 shell="cfgForPy",
+                                 additional_env=additional_env,
+                                 no_path_init=False,
+                                 for_package = binaries_dir_name)
+    else:
+        writer.write_env_file(filepath,
+                              False,  # for launch
+                              "cfgForPy",
+                              additional_env=additional_env,
+                              no_path_init=False,
+                              for_package = binaries_dir_name)
 
-    # Little hack to put out_dir_Path outside the strings
-    src.replace_in_file(filepath, 'r"out_dir_Path', 'out_dir_Path + r"' )
-    src.replace_in_file(filepath, "r'out_dir_Path + ", "out_dir_Path + r'" )
+        # Little hack to put out_dir_Path outside the strings
+        src.replace_in_file(filepath, 'r"out_dir_Path', 'out_dir_Path + r"' )
+        src.replace_in_file(filepath, "r'out_dir_Path + ", "out_dir_Path + r'" )
 
-    # A hack to put a call to a file for distene licence.
-    # It does nothing to an application that has no distene product
-    if distene_licence_file_name:
-        logger.write("Application has a distene licence file! We use it in package launcher", 5)
-        hack_for_distene_licence(filepath, distene_licence_file_name)
+        # A hack to put a call to a file for distene licence.
+        # It does nothing to an application that has no distene product
+        if distene_licence_file_name:
+            logger.write("Application has a distene licence file! We use it in package launcher", 5)
+            src.hack_for_distene_licence(filepath, distene_licence_file_name)
 
-    # change the rights in order to make the file executable for everybody
-    os.chmod(filepath,
-             stat.S_IRUSR |
-             stat.S_IRGRP |
-             stat.S_IROTH |
-             stat.S_IWUSR |
-             stat.S_IXUSR |
-             stat.S_IXGRP |
-             stat.S_IXOTH)
+        # change the rights in order to make the file executable for everybody
+        os.chmod(filepath,
+                 stat.S_IRUSR |
+                 stat.S_IRGRP |
+                 stat.S_IROTH |
+                 stat.S_IWUSR |
+                 stat.S_IXUSR |
+                 stat.S_IXGRP |
+                 stat.S_IXOTH)
 
     # restore modified setting by its initial value
     config.APPLICATION.base=base_setting
 
     return filepath
-
-def hack_for_distene_licence(filepath, licence_file):
-    '''Replace the distene licence env variable by a call to a file.
-
-    :param filepath Str: The path to the launcher to modify.
-    '''
-    shutil.move(filepath, filepath + "_old")
-    fileout= filepath
-    filein = filepath + "_old"
-    fin = open(filein, "r")
-    fout = open(fileout, "w")
-    text = fin.readlines()
-    # Find the Distene section
-    num_line = -1
-    for i,line in enumerate(text):
-        if "# Set DISTENE License" in line:
-            num_line = i
-            break
-    if num_line == -1:
-        # No distene product, there is nothing to do
-        fin.close()
-        for line in text:
-            fout.write(line)
-        fout.close()
-        return
-    del text[num_line +1]
-    del text[num_line +1]
-    text_to_insert ="""    try:
-        distene_licence_file=r"%s"
-        if sys.version_info[0] >= 3 and sys.version_info[1] >= 5:
-            import importlib.util
-            spec_dist = importlib.util.spec_from_file_location("distene_licence", distene_licence_file)
-            distene=importlib.util.module_from_spec(spec_dist)
-            spec_dist.loader.exec_module(distene)
-        else:
-            import imp
-            distene = imp.load_source('distene_licence', distene_licence_file)
-        distene.set_distene_variables(context)
-    except Exception:
-        pass\n"""  % licence_file
-    text.insert(num_line + 1, text_to_insert)
-    for line in text:
-        fout.write(line)
-    fin.close()
-    fout.close()
-    return
 
 def produce_relative_env_files(config,
                               logger,
@@ -474,7 +445,8 @@ def produce_relative_env_files(config,
 
     return filepath
 
-def produce_install_bin_file(config,
+def produce_install_bin_file(options,
+                             config,
                              logger,
                              file_dir,
                              d_sub,
@@ -518,6 +490,10 @@ def produce_install_bin_file(config,
         # substitute the template and write it in file
         content=src.template.substitute(installbin_template_path, d)
         installbin_file.write(content)
+        if options.with_extra_env_d:
+            installbin_file.write("\nif [ -d extra.env.d ]\nthen\n  rm -rf extra.env.d\nfi\n")
+        installbin_file.write("\necho Caution: you need to regenerate the launcher as well as the environment files! See README file on how to proceed\n")
+
         # change the rights in order to make the file executable for everybody
         os.chmod(filepath,
                  stat.S_IRUSR |
@@ -796,7 +772,6 @@ WARNING: existing binaries directory from previous detar installation:
                 prod_base_name=prod_info_name
         path_in_archive = os.path.join(binaries_dir_name, prod_base_name)
         d_products[prod_name + " (bin)"] = (install_dir, path_in_archive)
-
     for prod_name, source_dir in l_source_dir:
         path_in_archive = os.path.join("SOURCES", prod_name)
         d_products[prod_name + " (sources)"] = (source_dir, path_in_archive)
@@ -818,10 +793,11 @@ WARNING: existing binaries directory from previous detar installation:
             # create the relative launcher and add it to the files to add
             launcher_name = src.get_launcher_name(config)
             launcher_package = produce_relative_launcher(config,
-                                                 logger,
-                                                 tmp_working_dir,
-                                                 launcher_name,
-                                                 binaries_dir_name)
+                                                         logger,
+                                                         options.with_extra_env_d,
+                                                         tmp_working_dir,
+                                                         launcher_name,
+                                                         binaries_dir_name)
             d_products["launcher"] = (launcher_package, launcher_name)
 
             # if the application contains mesa products, we generate in addition to the
@@ -838,10 +814,11 @@ WARNING: existing binaries directory from previous detar installation:
                 src.activate_mesa_property(config)  #activate use_mesa property
                 launcher_mesa_name="mesa_"+launcher_name
                 launcher_package_mesa = produce_relative_launcher(config,
-                                                     logger,
-                                                     tmp_working_dir,
-                                                     launcher_mesa_name,
-                                                     binaries_dir_name)
+                                                                  logger,
+                                                                  options.with_extra_env_d,
+                                                                  tmp_working_dir,
+                                                                  launcher_mesa_name,
+                                                                  binaries_dir_name)
                 d_products["launcher (mesa)"] = (launcher_package_mesa, launcher_mesa_name)
 
                 # if there was a use_mesa value, we restore it
@@ -850,16 +827,19 @@ WARNING: existing binaries directory from previous detar installation:
                     config.APPLICATION.properties.use_mesa=restore_use_mesa_option
                 else:
                     config.APPLICATION.properties.use_mesa="no"
+                if options.with_extra_env_d:
+                    d_products["extra.env.d"] = (os.path.join(tmp_working_dir, "extra.env.d"), "extra.env.d")
 
             if options.sources:
                 # if we mix binaries and sources, we add a copy of the launcher,
                 # prefixed  with "bin",in order to avoid clashes
                 launcher_copy_name="bin"+launcher_name
                 launcher_package_copy = produce_relative_launcher(config,
-                                                     logger,
-                                                     tmp_working_dir,
-                                                     launcher_copy_name,
-                                                     binaries_dir_name)
+                                                                  logger,
+                                                                  options.with_extra_env_d,
+                                                                  tmp_working_dir,
+                                                                  launcher_copy_name,
+                                                                  binaries_dir_name)
                 d_products["launcher (copy)"] = (launcher_package_copy, launcher_copy_name)
         else:
             # Provide a script for the creation of an application EDF style
@@ -1843,6 +1823,7 @@ Please add it in file:
                     d_paths_to_substitute[source_dir]=path_in_archive
 
         d_files_to_add.update(d_bin_files_to_add)
+
     if options.sources:
         d_files_to_add.update(source_package(runner,
                                         runner.cfg,
@@ -1852,7 +1833,8 @@ Please add it in file:
         if options.binaries:
             # for archives with bin and sources we provide a shell script able to
             # install binaries for compilation
-            file_install_bin=produce_install_bin_file(runner.cfg,logger,
+            file_install_bin=produce_install_bin_file(options,
+                                                      runner.cfg,logger,
                                                       tmp_working_dir,
                                                       d_paths_to_substitute,
                                                       "install_bin.sh")

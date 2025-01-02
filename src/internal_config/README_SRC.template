@@ -33,12 +33,7 @@ Type the following command to compile and install the products of your applicati
 
 The -t option displays the compilation logs in the terminal.
 
-IMPORTANT 1:
-On CentOS 6.4 platform, the package devtoolset-2 must be installed to enable
-an alternative compiler and the compilation command must be preceded by
-"scl enable devtoolset-2".
-
-IMPORTANT 2: 
+IMPORTANT NOTE: 
 This operation may fail if some required linux packages are not installed on your system.
 It is also often necessary to install a nvidia driver.
 If you fail to compile and your archive contains pre-compiled binaries, 
@@ -67,11 +62,11 @@ In this case, you will still be able to execute the binary version, by using a c
 of its launcher, called bin¤{launcher}
 
 
-e) How to set the Distene license
-=================================
+e) How to set the 3DS MeshGems license
+======================================
 
 If your application is based on SALOME and use the SMESH module and MeshGems 
-prerequisite, you may want to set the Distene license. 
+prerequisite, you may want to set the 3DS MeshGems license. 
 To do so, edit the salome  launcher file (its located in the $ROOT directory).
 
 Then, find the lines that begin with:

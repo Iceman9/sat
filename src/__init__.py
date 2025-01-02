@@ -613,10 +613,13 @@ def replace_in_file(filein, strin, strout):
     shutil.move(filein, filein + "_old")
     fileout= filein
     filein = filein + "_old"
-    fin = open(filein, "r")
+    fin  = open(filein, "r")
     fout = open(fileout, "w")
     for line in fin:
         fout.write(line.replace(strin, strout))
+    fout.close()
+    fin.close()
+    os.remove(filein)
 
 def get_property_in_product_cfg(product_cfg, pprty):
     if not "properties" in product_cfg:
@@ -658,3 +661,49 @@ def get_git_server(config, logger):
         else:
             the_git_server =  [ git_server for git_server in config.VARS.git_servers if git_server in config.VARS.opensource_git_servers][0]
     return the_git_server
+
+def hack_for_distene_licence(filepath, licence_file):
+    '''Replace the distene licence env variable by a call to a file.
+
+    :param filepath Str: The path to the launcher to modify.
+    '''
+    shutil.move(filepath, filepath + "_old")
+    fileout= filepath
+    filein = filepath + "_old"
+    fin = open(filein, "r")
+    fout = open(fileout, "w")
+    text = fin.readlines()
+    # Find the Distene section
+    num_line = -1
+    for i,line in enumerate(text):
+        if "# Set DISTENE License" in line:
+            num_line = i
+            break
+    if num_line == -1:
+        # No distene product, there is nothing to do
+        fin.close()
+        for line in text:
+            fout.write(line)
+        fout.close()
+        return
+    del text[num_line +1]
+    del text[num_line +1]
+    text_to_insert ="""    try:
+        distene_licence_file=r"%s"
+        if sys.version_info[0] >= 3 and sys.version_info[1] >= 5:
+            import importlib.util
+            spec_dist = importlib.util.spec_from_file_location("distene_licence", distene_licence_file)
+            distene=importlib.util.module_from_spec(spec_dist)
+            spec_dist.loader.exec_module(distene)
+        else:
+            import imp
+            distene = imp.load_source('distene_licence', distene_licence_file)
+        distene.set_distene_variables(context)
+    except Exception:
+        pass\n"""  % licence_file
+    text.insert(num_line + 1, text_to_insert)
+    for line in text:
+        fout.write(line)
+    fin.close()
+    fout.close()
+    return

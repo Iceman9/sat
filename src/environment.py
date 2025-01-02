@@ -21,6 +21,8 @@ import subprocess
 import string
 import sys
 import copy
+import stat
+import shutil
 
 import src
 import src.debug as DBG
@@ -363,6 +365,10 @@ class SalomeEnviron:
             # what for ?
             # self.environ.add_comment("clean all the path")
             self.environ.finish()
+
+    def set_is_native(self, product_name):
+        """Ensure product is seen as native"""
+        self.set("SAT_%s_IS_NATIVE"%product_name, "1")
 
     def set_python_libdirs(self):
         """Set some generic variables for python library paths"""
@@ -913,9 +919,158 @@ class FileEnvWriter:
             env.set_a_product(product, self.logger)
             env_file.close()
             if not self.silent:
-                self.logger.write(_("    Create tcl module environment file %s\n") % 
+                self.logger.write(_("    Create tcl module environment file %s\n") %
                                   src.printcolors.printcLabel(env_file_name), 3)
 
+
+    def write_env_d_files(self,
+                          file_dir,
+                          file_name,
+                          extra_env_dir,
+                          forBuild,
+                          shell,
+                          for_package = False,
+                          no_path_init=False,
+                          additional_env={}
+                          ):
+        """\
+        Create extra.env.d environment files.
+
+        :param forBuild bool: if true, the build environment
+        :param shell str: the type of file wanted (.sh, .bat)
+        :param for_package bool: if true do specific stuff for required for packages
+        :param no_path_init bool: if true generate a environ file that do not reinitialise paths
+        :param additional_env dict: contains sat_ prefixed variables to help the génération,
+                                    and also variables to add in the environment.
+        :return: None
+        :rtype: None
+        """
+
+        additional_env["sat_dist"]=self.config.VARS.dist
+        if not self.silent:
+            self.logger.write(_("Create environment file %s\n") %
+                              src.printcolors.printcLabel(file_name), 3)
+        # create then env object
+        env_file_name  = os.path.join(file_dir, file_name)
+        env_file       = open(env_file_name, "w")
+
+        # we duplicate additional_env, and transmit it to fileEnviron, which will use its sat_ prefixed variables.
+        # the other variables of additional_env are added to the environement file at the end of this function.
+        salome_env = copy.deepcopy(additional_env)
+        file_environ = src.fileEnviron.get_file_environ(env_file,
+                                                        shell,
+                                                        src.environment.Environ(salome_env))
+        if no_path_init:
+            # specify we don't want to reinitialise paths
+            # path will keep the inherited value, which will be appended with new values.
+            file_environ.set_no_init_path()
+
+        env = SalomeEnviron(self.config,
+                            file_environ,
+                            forBuild,
+                            for_package=for_package)
+
+        env.silent = self.silent
+
+        # Set the environment
+        if self.env_info is not None:
+            env.set_full_environ(self.logger, self.env_info)
+        else:
+            # set env from the APPLICATION
+            env.set_application_env(self.logger)
+        # if MESA launcher
+        if 'properties' in self.config.APPLICATION and 'use_mesa' in self.config.APPLICATION.properties and self.config.APPLICATION.properties.use_mesa == "yes":
+            for product in env.sorted_product_list:
+                pi = src.product.get_product_config(self.config, product)
+                if 'properties' in pi and 'is_mesa' in pi.properties and pi.properties.is_mesa == "yes":
+                    env.set_a_product(product,self.logger)
+        # Add the additional environment if it is not empty
+        if len(additional_env) != 0:
+            env.add_line(1)
+            env.add_comment("[APPLI variables]")
+            for variable in additional_env:
+                if not variable.startswith("sat_"):
+                    # by convention variables starting with sat_ are used to transfer information,
+                    # not to be written in env
+                    env.set(variable, additional_env[variable])
+
+        # finalise the writing and close the file
+        env.finish()
+        env_file.close()
+        if for_package:
+            # Little hack to put out_dir_Path outside the strings
+            src.replace_in_file(env_file_name, 'r"out_dir_Path', 'out_dir_Path + r"' )
+            src.replace_in_file(env_file_name, "r'out_dir_Path + ", "out_dir_Path + r'" )
+
+        # change the rights in order to make the file executable for everybody
+        os.chmod(env_file_name,
+                 stat.S_IRUSR |
+                 stat.S_IRGRP |
+                 stat.S_IROTH |
+                 stat.S_IWUSR |
+                 stat.S_IXUSR |
+                 stat.S_IXGRP |
+                 stat.S_IXOTH)
+
+        # get the products informations
+        all_products=self.config.APPLICATION.products
+        products_infos = src.product.get_products_infos(all_products, self.config)
+        # The loop on the products
+        uid=1
+        for product in env.sorted_product_list:
+            pi = src.product.get_product_config(self.config, product)
+            if product == "Python":
+                pi.uid=1
+            if "base" not in pi:  # we write tcl files only for products in base
+                continue
+            if 'properties' in pi and 'pip' in pi.properties and pi.properties.pip == 'yes':
+                continue
+            if 'properties' in pi and 'is_mesa' in pi.properties and pi.properties.is_mesa == 'yes':
+                continue
+            if 'properties' in pi and 'compile_time' in pi.properties and pi.properties.compile_time == 'yes':
+                continue
+            if 'Python' !=  product and not 'uid' in pi:
+                uid+=1
+                pi.uid=uid
+            env_file_name = os.path.join(extra_env_dir,  '{}_{}.py'.format('{0:04d}'.format(pi.uid), pi.name))
+            if not for_package:
+                self.logger.write(_("Create extra.env.d module file %s\n") %
+                                  src.printcolors.printcLabel(env_file_name), 3)
+            env_file = open(env_file_name, "w")
+            file_environ = src.fileEnviron.get_file_environ(env_file,
+                                               "env.d",
+                                               src.environment.Environ(additional_env))
+            file_environ.init_path=False
+            env = SalomeEnviron(self.config,
+                                file_environ,
+                                False,
+                                for_package=for_package)
+            env.has_python=True
+            env.python_lib=file_environ.get("PYTHON_LIBDIR")
+            env.set_a_product(product, self.logger)
+            if 'Python' == product:
+                env.set_python_libdirs()
+            if pi.get_source == 'native':
+                # check if product has a given environment
+                env.set_is_native(product)
+
+            env_file.close()
+            if not self.silent:
+                self.logger.write(_("    Create extra.env.d module file %s\n") %
+                                  src.printcolors.printcLabel(env_file_name), 3)
+            if for_package is not None:
+                src.replace_in_file(env_file_name, 'r"out_dir_Path', 'root_dir + r"' )
+                src.replace_in_file(env_file_name, "r'out_dir_Path + ", "root_dir + r'" )
+
+            os.chmod(env_file_name,
+                     stat.S_IRUSR |
+                     stat.S_IRGRP |
+                     stat.S_IROTH |
+                     stat.S_IWUSR |
+                     stat.S_IXUSR |
+                     stat.S_IXGRP |
+                     stat.S_IXOTH)
+        return
 
     def write_env_file(self,
                        filename,

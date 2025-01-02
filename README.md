@@ -12,5 +12,5 @@ SAT currently supports the following platforms:
 - Ubuntu: 20.04, 22.04, 24.04
 - Windows 10
 
-To build a SALOME archive using the SAT tool, follow closely the recipe described at this link: https://github.com/SalomePlatform/.github/wiki
- 
+To build a SALOME archive using the SAT tool, follow closely the recipe described at this [link](https://github.com/SalomePlatform/.github/wiki).
+
