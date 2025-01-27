@@ -454,6 +454,7 @@ class Builder:
         # pass additional variables to environment 
         # (may be used by the build script)
         self.build_environ.set("APPLICATION_NAME", self.config.APPLICATION.name)
+        self.build_environ.set("PRODUCT_NAME", self.product_name)
         self.build_environ.set("SOURCE_DIR", str(self.source_dir))
         self.build_environ.set("INSTALL_DIR", str(self.install_dir))
         self.build_environ.set("PRODUCT_INSTALL", str(self.install_dir))
