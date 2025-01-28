@@ -733,9 +733,16 @@ class SalomeEnviron:
 
         # import the script and run the set_env function
         try:
-            import imp
-            pyproduct = imp.load_source(product_info.name + "_env_script",
-                                        env_script)
+            if sys.version_info[:2] >= (3,12):
+                import importlib
+                import importlib.util
+                spec = importlib.util.spec_from_file_location(product_info.name + "_env_script", env_script)
+                pyproduct = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(pyproduct)
+            else:
+                import imp
+                pyproduct = imp.load_source(product_info.name + "_env_script", env_script)
+
             if not native:
                 if self.forBuild and "set_env_build" in dir(pyproduct):
                     pyproduct.set_env_build(self,

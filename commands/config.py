@@ -709,10 +709,10 @@ def show_product_info(config, name, logger):
         src.printcolors.print_value(logger, "tag", pinfo.cvs_info.tag, 2)
 
     elif method == 'svn':
-        src.printcolors.print_value(logger, "repo", pinfo.svn_info.repo, 2)
+        src.printcolors.print_value(logger, "repositories", pinfo.svn_info.repositories, 2)
 
     elif method == 'git':
-        src.printcolors.print_value(logger, "repo", pinfo.git_info.repo, 2)
+        src.printcolors.print_value(logger, "repositories", pinfo.git_info.repositories, 2)
         src.printcolors.print_value(logger, "tag", pinfo.git_info.tag, 2)
 
     elif method == 'archive':
