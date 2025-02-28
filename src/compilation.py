@@ -168,7 +168,8 @@ class Builder:
         # In case CMAKE_GENERATOR is defined in environment, 
         # use it in spite of automatically detect it
         if 'cmake_generator' in self.config.APPLICATION:
-            cmake_option += " -G \"%s\" -A x64 " % self.config.APPLICATION.cmake_generator
+            # cmake_option += " -G \"%s\" -A x64 " % self.config.APPLICATION.cmake_generator
+            cmake_option += f" -G{self.config.APPLICATION.cmake_generator} "
         command = ("cmake %s -DCMAKE_INSTALL_PREFIX=%s %s" %
                             (cmake_option, self.install_dir, self.source_dir))
 
@@ -242,7 +243,12 @@ class Builder:
     def make(self, nb_proc, make_opt=""):
 
         # make
-        command = 'make'
+
+        # Use Ninja if biuld.ninja is present in build dir
+        if os.path.exists(os.path.join(str(self.build_dir), "build.ninja")):
+            command = "ninja"
+        else:
+            command = 'make'
         command = command + " -j" + str(nb_proc)
         command = command + " " + make_opt
         self.log_command(command)
@@ -292,7 +298,11 @@ class Builder:
             command = 'msbuild INSTALL.vcxproj'
             command+= ' /p:Configuration={}  /p:Platform=x64 '.format(self.cmake_build_type)
         else :
-            command = 'make install'
+            # Use ninja install if build.ninja is present
+            if os.path.exists(os.path.join(str(self.build_dir), "build.ninja")):
+                command = "ninja install"
+            else:
+                command = 'make install'
         self.log_command(command)
 
         res = subprocess.call(command,
@@ -342,7 +352,11 @@ class Builder:
             if self.product_info.build_source=="autotools" :
                 cmd = 'make check'
             else:
-                cmd = 'make test'
+                # Use ninja test if build.ninja is present
+                if os.path.exists(os.path.join(str(self.build_dir), "build.ninja")):
+                    cmd = "ninja test"
+                else:
+                    cmd = 'make test'
         
         if command:
             cmd = command
