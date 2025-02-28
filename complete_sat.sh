@@ -17,7 +17,8 @@
 
 # Completion Function for salomeTools (sat)
 
-export SAT_PATH=$(cd `dirname "${BASH_SOURCE}"` && pwd)
+SCRIPT_REL_PATH=${BASH_SOURCE:-$0}
+export SAT_PATH=$(cd `dirname "${SCRIPT_REL_PATH}"` && pwd)
 
 _show_applications()
 {

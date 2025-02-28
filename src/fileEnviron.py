@@ -776,20 +776,11 @@ tcl_header="""\
 
 bash_header="""\
 #!/bin/bash
-if [ "$BASH" = "" ]
-then
-  # check that the user is not using another shell
-  echo
-  echo "Warning! SALOME environment not initialized"
-  echo "You must run this script in a BASH shell."
-  echo "As you are using another shell. Please first run: bash"
-  echo
-  exit 1
-fi
 ##########################################################################
 #
 # This line is used only in case of a sat package
-export out_dir_Path=$(cd $(dirname ${BASH_SOURCE[0]});pwd)
+SCRIPT_REL_PATH=${BASH_SOURCE:-$0}
+export out_dir_Path=$(cd $(dirname ${SCRIPT_REL_PATH});pwd)
 
 ###########################################################################
 """
