@@ -225,6 +225,72 @@ def get_source_from_archive(config, product_info, source_dir, logger):
     
     return retcode
 
+def get_source_from_release(config, product_info, source_dir, logger):
+    """Get the software from a release link. Some softwares (i.e., ispc and
+    Saxon) do not need to be compiled, nor are they git clonned but instead are
+    obtained from github asset links. Therefore this function simply extracts
+    the contents into SOURCE dir.
+    """
+    def download_file(url, local_filename):
+        import requests
+
+        # NOTE the stream=True parameter below
+        status = True
+        try:
+
+            with requests.get(url, stream=True) as r:
+                r.raise_for_status()
+                with open(local_filename, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        # If you have chunk encoded response uncomment if
+                        # and set chunk_size parameter to None.
+                        #if chunk:
+                        f.write(chunk)
+        except Exception as e:
+            msg = str(e)
+            logger.write("\n%s\n" % src.printcolors.printcError(msg))
+            status = False
+        return local_filename, status
+
+    if 'web_link' not in product_info:
+        msg = ("Error: you must put a web_link section into the file " +
+               "%s.pyconf" % product_info.name)
+        logger.write("\n%s\n" % src.printcolors.printcError(msg), 1)
+        return False
+
+    web_link = product_info.web_link
+
+    local_filename = os.path.join(config.LOCAL.archive_dir,
+        product_info.name + "_" + web_link.split('/')[-1])
+
+    if not os.path.exists(local_filename):
+        # Download the file into directory
+        logger.write('Downloading: ...%s' % web_link[-47:], 3, False)
+        logger.flush()
+        file_name, status = download_file(web_link, local_filename)
+        if not status:
+            msg = "Problem with downloading %s" % web_link
+            logger.write("\n%s\n" % src.printcolors.printcError(msg), 1)
+            return False
+        logger.write(' Done.')
+    logger.flush()
+    logger.write('Extracting...', 3, False)
+    logger.flush()
+    # Call the system function that do the extraction in archive mode
+    retcode, NameExtractedDirectory = src.system.archive_extract(local_filename,
+                                    source_dir.dir(), logger, str(product_info.name))
+
+    # Rename the source directory if
+    # it does not match with product_info.source_dir
+    if len(NameExtractedDirectory):
+        if (NameExtractedDirectory.replace('/', '') !=
+                os.path.basename(product_info.source_dir)):
+            shutil.move(os.path.join(os.path.dirname(product_info.source_dir),
+                                     NameExtractedDirectory),
+                        product_info.source_dir)
+
+    return retcode
+
 def get_source_from_dir(product_info, source_dir, logger):
     
     if "dir_info" not in product_info:
@@ -419,6 +485,9 @@ def get_product_sources(config,
         svn_user = config.USER.svn_user
         return get_source_from_svn(svn_user, product_info, source_dir, 
                                     checkout, logger, env_appli)
+
+    if product_info.get_source == "release":
+        return get_source_from_release(config, product_info, source_dir, logger)
 
     if product_info.get_source == "native":
         # for native products we check the corresponding system packages are installed
