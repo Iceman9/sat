@@ -186,7 +186,7 @@ def get_product_config(config, product_name, with_install_dir=True):
         # put the tag (equal to the version)
         if prod_info is not None and prod_info.get_source in AVAILABLE_VCS:
             
-            if prod_info.get_source == 'git':
+            if prod_info.get_source == 'git' and 'tag' not in prod_info.git_info:
                 prod_info.git_info.tag = version
             
             if prod_info.get_source == 'svn':
@@ -774,10 +774,13 @@ def get_products_infos(lproducts, config):
     # Loop on product names
     for prod in lproducts:       
         # Get the specific configuration of the product
-        prod_info = get_product_config(config, prod)
-        if prod_info is not None:
-            products_infos.append((prod, prod_info))
-        else:
+        try:
+            prod_info = get_product_config(config, prod)
+
+            if prod_info is not None:
+                products_infos.append((prod, prod_info))
+        except Exception as e:
+            print(e)
             msg = _("The %s product has no definition in the configuration.") % prod
             raise src.SatException(msg)
     return products_infos
