@@ -25,12 +25,13 @@ import os
 import subprocess as SP
 import time
 import tarfile
+import zipfile
 import time
  
 
 import debug as DBG
 import utilsSat as UTS
-import src
+import salomeTools
 
 from . import printcolors
 
@@ -147,6 +148,12 @@ def git_extract(from_what, tag, git_options, git_commands, where, logger, enviro
       cmd+= "\n" + "if [ $? -ne 0 ]; then"
       cmd+= "\n" + "  exit 1"
       cmd+= "\n" + "fi"
+      cmd+= "\n" + "cd %(where)s"
+      cmd+= "\n" + "git submodule update --init"
+      cmd+= "\n" + "if [ $? -ne 0 ]; then"
+      cmd+= "\n" + "  exit 1"
+      cmd+= "\n" + "fi"
+      cmd+= "\n" + "cd -"
       cmd+= "\n" + "touch -d \"$(git --git-dir=%(where_git)s  log -1 --format=date_format)\" %(where)s"
       cmd+= "\n" + "if [ $? -ne 0 ]; then"
       cmd+= "\n" + "  exit 1"
@@ -177,6 +184,12 @@ def git_extract(from_what, tag, git_options, git_commands, where, logger, enviro
       cmd+= "\n" + "if [ $? -ne 0 ]; then"
       cmd+= "\n" + "  exit 1"
       cmd+= "\n" + "fi"
+      cmd+= "\n" + "cd %(where)s"
+      cmd+= "\n" + "git submodule update --init"
+      cmd+= "\n" + "if [ $? -ne 0 ]; then"
+      cmd+= "\n" + "  exit 1"
+      cmd+= "\n" + "fi"
+      cmd+= "\n" + "cd -"
       if len(git_commands) > 0:
         cmd+= "\n" + "cd %(where)s"
         for git_command in git_commands:
@@ -298,20 +311,46 @@ def git_extract_sub_dir(from_what, tag, git_options, git_commands, where, sub_di
 
   return rc.isOk()
 
-def archive_extract(from_what, where, logger):
+def archive_extract(from_what, where, logger, backup_prefix=""):
     '''Extracts sources from an archive.
     
     :param from_what str: The path to the archive.
     :param where str: The path where to extract.
     :param logger Logger: The logger instance to use.
+    :param backup_prefix str: Additional prefix to the path. In case we wish a
+        different root name of the archive
     :return: True if the extraction is successful
     :rtype: boolean
     '''
     try:
-        archive = tarfile.open(from_what)
-        for i in archive.getmembers():
-            archive.extract(i, path=str(where))
-        return True, os.path.commonprefix(archive.getnames())
+        lower = from_what.lower()
+
+        tar_extracts = ['tar.gz', 'tgz', 'tar.bz2', 'tar.xz']
+        if any([lower.endswith(_) for _ in tar_extracts]):
+            # First see if the files in the archive have a common prefix
+            archive = tarfile.open(from_what)
+            members = archive.getnames()
+            common_prefix = os.path.commonprefix(members)
+            if len(common_prefix) == 0:
+                # No root directory.
+                where = os.path.join(str(where), backup_prefix)
+                common_prefix = backup_prefix
+
+            archive.extractall(path=str(where))
+            # for i in members:
+                # archive.extract(i, path=str(where))
+        elif lower.endswith("zip"):
+            with zipfile.ZipFile(from_what, "r") as zip_f:
+                common_prefix = os.path.commonprefix(zip_f.namelist())
+                if len(common_prefix) == 0:
+                    # No root directory.
+                    where = os.path.join(str(where), backup_prefix)
+                    common_prefix = backup_prefix
+                zip_f.extractall(str(where))
+        else:
+            raise Exception("Failed to extract")
+
+        return True, common_prefix
     except Exception as exc:
         logger.write("archive_extract: %s\n" % exc)
         return False, None
@@ -425,10 +464,10 @@ def get_pkg_check_cmd(dist_name):
 
     if dist_name in ["CO","FD","MG","MD","CO","OS"]: # linux using rpm
         linux="RH"  
-        manager_msg_err="Error : command failed because sat was not able to find apt command"
+        manager_msg_err="Error : command failed because sat was not able to find rpm command"
     else:
         linux="DB"
-        manager_msg_err="Error : command failed because sat was not able to find rpm command"
+        manager_msg_err="Error : command failed because sat was not able to find apt command"
 
     # 1- search for an installed package manager (rpm on rh, apt or dpkg-query on db)
     cmd_which_rpm  = ["which", "rpm"]
@@ -499,7 +538,7 @@ def check_system_pkg(check_cmd,pkg):
             msg_status = src.printcolors.printcError("KO")
             msg_status += " (package is not installed!)\n"
     else:
-        p=SP.Popen(cmd_is_package_installed, stdout=SP.PIPE, stderr=FNULL)
+        p=SP.Popen(cmd_is_package_installed, stdout=SP.PIPE, stderr=FNULL, env={})
         output, err = p.communicate()
         rc = p.returncode
         if rc==0:
