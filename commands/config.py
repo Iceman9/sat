@@ -135,7 +135,7 @@ class ConfigManager:
         '''
         var = {}      
         var['user'] = src.architecture.get_user()
-        var['salometoolsway'] = os.path.dirname( os.path.dirname(os.path.abspath(__file__)))
+        var['salometoolsway'] = os.path.normpath(os.path.dirname( os.path.dirname(os.path.abspath(__file__))))
         var['srcDir'] =  osJoin(var['salometoolsway'], 'src')
         var['internal_dir'] =  osJoin(var['srcDir'], 'internal_config')
         var['sep']= os.path.sep
@@ -148,6 +148,8 @@ class ConfigManager:
         var['datadir'] =  osJoin(var['salometoolsway'], 'data')
         if datadir is not None:
             var['datadir'] = datadir
+
+        var['workdir'] = os.path.normpath(os.path.dirname(var['salometoolsway']))
         var['personalDir'] =  osJoin(os.path.expanduser('~'), '.salomeTools')
         src.ensure_path_exists(var['personalDir'])
 
@@ -300,14 +302,14 @@ class ConfigManager:
 
         # When the key is "default", put the default value
         if cfg.LOCAL.base == "default":
-            cfg.LOCAL.base = os.path.abspath(osJoin(cfg.VARS.salometoolsway, "..", "BASE"))
+            cfg.LOCAL.base = os.path.normpath(os.path.abspath(osJoin(cfg.VARS.salometoolsway, "..", "BASE")))
         if cfg.LOCAL.workdir == "default":
-            cfg.LOCAL.workdir = os.path.abspath(osJoin(cfg.VARS.salometoolsway, ".."))
+            cfg.LOCAL.workdir = os.path.normpath(os.path.abspath(osJoin(cfg.VARS.salometoolsway, "..")))
         if cfg.LOCAL.log_dir == "default":
-            cfg.LOCAL.log_dir = os.path.abspath(osJoin(cfg.VARS.salometoolsway, "..", "LOGS"))
+            cfg.LOCAL.log_dir = os.path.normpath(os.path.abspath(osJoin(cfg.VARS.salometoolsway, "..", "LOGS")))
 
         if cfg.LOCAL.archive_dir == "default":
-            cfg.LOCAL.archive_dir = os.path.abspath( osJoin(cfg.VARS.salometoolsway, "..", "ARCHIVES"))
+            cfg.LOCAL.archive_dir = os.path.normpath(os.path.abspath( osJoin(cfg.VARS.salometoolsway, "..", "ARCHIVES")))
 
         # if the sat tag was not set permanently by user
         if cfg.LOCAL.tag == "unknown":
@@ -345,7 +347,7 @@ class ConfigManager:
             project_name = os.path.basename(
                                     project_pyconf_path)[:-len(".pyconf")]
             try:
-                project_pyconf_dir = os.path.dirname(project_pyconf_path)
+                project_pyconf_dir = os.path.normpath(os.path.dirname(project_pyconf_path))
                 project_cfg = src.pyconf.Config(open(project_pyconf_path),
                                                 PWD=("", project_pyconf_dir))
             except Exception as e:
@@ -501,7 +503,7 @@ class ConfigManager:
                 product_file_name = product_name + ".pyconf"
                 product_file_path = src.find_file_in_lpath(product_file_name, cfg.PATHS.PRODUCTPATH)
                 if product_file_path:
-                    products_dir = os.path.dirname(product_file_path)
+                    products_dir = os.path.normpath(os.path.dirname(project_pyconf_path))
                     # for a relative path (archive case) we complete with sat path
                     if not os.path.isabs(products_dir):
                         products_dir = os.path.join(cfg.VARS.salometoolsway,
