@@ -149,7 +149,6 @@ class ConfigManager:
         if datadir is not None:
             var['datadir'] = datadir
 
-        var['workdir'] = os.path.normpath(os.path.dirname(var['salometoolsway']))
         var['personalDir'] =  osJoin(os.path.expanduser('~'), '.salomeTools')
         src.ensure_path_exists(var['personalDir'])
 
