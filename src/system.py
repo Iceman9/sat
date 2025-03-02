@@ -31,7 +31,7 @@ import time
 
 import debug as DBG
 import utilsSat as UTS
-import salomeTools
+import src
 
 from . import printcolors
 
