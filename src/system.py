@@ -148,6 +148,13 @@ def git_extract(from_what, tag, git_options, git_commands, where, logger, enviro
       cmd+= "\n" + "if [ $? -ne 0 ]; then"
       cmd+= "\n" + "  exit 1"
       cmd+= "\n" + "fi"
+      if len(git_commands) > 0:
+        cmd+= "\n" + "cd %(where)s"
+        for git_command in git_commands:
+            cmd+= "\n" + git_command
+            cmd+= "\n" + "if [ $? -ne 0 ]; then"
+            cmd+= "\n" + "  exit 1"
+            cmd+= "\n" + "fi"
       cmd+= "\n" + "cd %(where)s"
       cmd+= "\n" + "git submodule update --init"
       cmd+= "\n" + "if [ $? -ne 0 ]; then"
@@ -158,13 +165,6 @@ def git_extract(from_what, tag, git_options, git_commands, where, logger, enviro
       cmd+= "\n" + "if [ $? -ne 0 ]; then"
       cmd+= "\n" + "  exit 1"
       cmd+= "\n" + "fi"
-      if len(git_commands) > 0:
-        cmd+= "\n" + "cd %(where)s"
-        for git_command in git_commands:
-            cmd+= "\n" + git_command
-            cmd+= "\n" + "if [ $? -ne 0 ]; then"
-            cmd+= "\n" + "  exit 1"
-            cmd+= "\n" + "fi"
   else:
     if src.architecture.is_windows():
       cmd = "rmdir /S /Q %(where)s"
@@ -184,12 +184,6 @@ def git_extract(from_what, tag, git_options, git_commands, where, logger, enviro
       cmd+= "\n" + "if [ $? -ne 0 ]; then"
       cmd+= "\n" + "  exit 1"
       cmd+= "\n" + "fi"
-      cmd+= "\n" + "cd %(where)s"
-      cmd+= "\n" + "git submodule update --init"
-      cmd+= "\n" + "if [ $? -ne 0 ]; then"
-      cmd+= "\n" + "  exit 1"
-      cmd+= "\n" + "fi"
-      cmd+= "\n" + "cd -"
       if len(git_commands) > 0:
         cmd+= "\n" + "cd %(where)s"
         for git_command in git_commands:
@@ -197,6 +191,12 @@ def git_extract(from_what, tag, git_options, git_commands, where, logger, enviro
             cmd+= "\n" + "if [ $? -ne 0 ]; then"
             cmd+= "\n" + "  exit 1"
             cmd+= "\n" + "fi"
+      cmd+= "\n" + "cd %(where)s"
+      cmd+= "\n" + "git submodule update --init"
+      cmd+= "\n" + "if [ $? -ne 0 ]; then"
+      cmd+= "\n" + "  exit 1"
+      cmd+= "\n" + "fi"
+      cmd+= "\n" + "cd -"
       cmd+= "\n" + "git --git-dir=%(where_git)s status | grep HEAD"
       cmd+= "\n" + "touch -d \"$(git --git-dir=%(where_git)s  log -1 --format=date_format)\" %(where)s"
       cmd+= "\n" + "exit 0"
