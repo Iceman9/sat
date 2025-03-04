@@ -168,8 +168,9 @@ class Builder:
         # In case CMAKE_GENERATOR is defined in environment, 
         # use it in spite of automatically detect it
         if 'cmake_generator' in self.config.APPLICATION:
-            # cmake_option += " -G \"%s\" -A x64 " % self.config.APPLICATION.cmake_generator
             cmake_option += f" -G{self.config.APPLICATION.cmake_generator} "
+            if src.architecture.is_windows():
+                cmake_option += "-A x64 "
         command = ("cmake %s -DCMAKE_INSTALL_PREFIX=%s %s" %
                             (cmake_option, self.install_dir, self.source_dir))
 
