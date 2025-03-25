@@ -20,6 +20,7 @@ import os
 import shutil
 import re
 import subprocess
+import pathlib
 
 import src
 import prepare
@@ -260,8 +261,20 @@ def get_source_from_release(config, product_info, source_dir, logger):
 
     web_link = product_info.web_link
 
-    local_filename = os.path.join(config.LOCAL.archive_dir,
-        product_info.name + "_" + web_link.split('/')[-1])
+    archive_name = product_info.name + '_' + product_info.version
+
+    # Get extension
+    _exts = pathlib.Path(web_link.split('/')[-1]).suffixes
+
+    # Handling .tar.XX extension
+    if len(_exts) >= 2 and  _exts[-2].lower() == ".tar":
+        archive_name += _exts[-2] + _exts[-1]
+    else:
+        # TODO: Make sure to check if extension make sense and is not some
+        # strange string. Otherwise extend the product_info so that
+        archive_name += _exts[-1]
+
+    local_filename = os.path.join(config.LOCAL.archive_dir, archive_name)
 
     if not os.path.exists(local_filename):
         # Download the file into directory
@@ -274,7 +287,7 @@ def get_source_from_release(config, product_info, source_dir, logger):
             return False
         logger.write(' Done.')
     logger.flush()
-    logger.write('Extracting...', 3, False)
+    logger.write(f'Extracting... {archive_name}', 3, False)
     logger.flush()
     # Call the system function that do the extraction in archive mode
     retcode, NameExtractedDirectory = src.system.archive_extract(local_filename,
