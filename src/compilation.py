@@ -167,9 +167,16 @@ class Builder:
 
         # In case CMAKE_GENERATOR is defined in environment, 
         # use it in spite of automatically detect it
-        if 'cmake_generator' in self.config.APPLICATION:
-            cmake_option += f" -G{self.config.APPLICATION.cmake_generator} "
-            if src.architecture.is_windows():
+
+        # Take precedence if cmake_generator is defined in product_info
+        cmake_generator = None
+        if 'cmake_generator' in self.product_info:
+            cmake_generator = self.product_info.cmake_generator
+        elif 'cmake_generator' in self.config.APPLICATION:
+            cmake_generator = self.config.APPLICATION.cmake_generator
+        if not cmake_generator is None:
+            cmake_option += f" -G{cmake_generator} "
+            if src.architecture.is_windows() and cmake_generator.lower() != "ninja":
                 cmake_option += "-A x64 "
         command = ("cmake %s -DCMAKE_INSTALL_PREFIX=%s %s" %
                             (cmake_option, self.install_dir, self.source_dir))
@@ -273,10 +280,13 @@ class Builder:
         if self.debug_mode:
             hh += " " + src.printcolors.printcWarning("DEBUG")
         # make
-        command = 'msbuild'
-        command+= " /maxcpucount:" + str(nb_proc)
-        command+= " /p:Configuration={}  /p:Platform=x64 ".format(self.cmake_build_type)
-        command = command + " ALL_BUILD.vcxproj"
+        if os.path.exists(os.path.join(str(self.build_dir), "build.ninja")):
+            command = "ninja"
+        else:
+            command = 'msbuild'
+            command+= " /maxcpucount:" + str(nb_proc)
+            command+= " /p:Configuration={}  /p:Platform=x64 ".format(self.cmake_build_type)
+            command = command + " ALL_BUILD.vcxproj"
 
         self.log_command(command)
         res = subprocess.call(command,
@@ -295,14 +305,15 @@ class Builder:
     ##
     # Runs 'make install'.
     def install(self):
-        if src.architecture.is_windows():
-            command = 'msbuild INSTALL.vcxproj'
-            command+= ' /p:Configuration={}  /p:Platform=x64 '.format(self.cmake_build_type)
-        else :
-            # Use ninja install if build.ninja is present
-            if os.path.exists(os.path.join(str(self.build_dir), "build.ninja")):
-                command = "ninja install"
-            else:
+
+        # Use ninja install if build.ninja is present
+        if os.path.exists(os.path.join(str(self.build_dir), "build.ninja")):
+            command = "ninja install"
+        else:
+            if src.architecture.is_windows():
+                command = 'msbuild INSTALL.vcxproj'
+                command+= ' /p:Configuration={}  /p:Platform=x64 '.format(self.cmake_build_type)
+            else :
                 command = 'make install'
         self.log_command(command)
 
@@ -347,15 +358,15 @@ class Builder:
     ##
     # Runs 'make_check'.
     def check(self, command=""):
-        if src.architecture.is_windows():
-            cmd = 'msbuild RUN_TESTS.vcxproj /p:Configuration={}  /p:Platform=x64 '.format(self.cmake_build_type)
-        else :
-            if self.product_info.build_source=="autotools" :
-                cmd = 'make check'
-            else:
-                # Use ninja test if build.ninja is present
-                if os.path.exists(os.path.join(str(self.build_dir), "build.ninja")):
-                    cmd = "ninja test"
+        # Use ninja test if build.ninja is present
+        if os.path.exists(os.path.join(str(self.build_dir), "build.ninja")):
+            cmd = "ninja test"
+        else:
+            if src.architecture.is_windows():
+                cmd = 'msbuild RUN_TESTS.vcxproj /p:Configuration={}  /p:Platform=x64 '.format(self.cmake_build_type)
+            else :
+                if self.product_info.build_source=="autotools" :
+                    cmd = 'make check'
                 else:
                     cmd = 'make test'
         
@@ -501,6 +512,8 @@ class Builder:
 
         if src.architecture.is_windows():
             make_options = "/maxcpucount:%s" % nb_proc
+            # Fix path to script: / -> \
+            script = script.replace("/", "\\")
         else :
             make_options = "-j%s" % nb_proc
 
@@ -533,7 +546,6 @@ class Builder:
                 nb_proc = self.config.VARS.nb_proc
         else:
             nb_proc = min(number_of_proc, self.config.VARS.nb_proc)
-            
         extension = script.split('.')[-1]
         if extension in ["bat","sh"]:
             return self.do_batch_script_build(script, nb_proc)
