@@ -168,12 +168,13 @@ def git_extract(from_what, tag, git_options, git_commands, where, logger, enviro
   else:
     if src.architecture.is_windows():
       cmd = "rmdir /S /Q %(where)s"
-      cmd+= "&&" + "git clone %(git_options)s %(remote)s %(where)s"
-      cmd+= "&&" + "git --git-dir=%(where_git)s --work-tree=%(where)s checkout %(tag)s"
+      cmd+= "&&" + "git clone --depth 1 --no-tags --branch %(tag)s %(remote)s %(where)s"
+      cmd+= "&&" + "cd %(where)s"
       if len(git_commands) > 0:
         cmd+= "&&" + "cd %(where)s"
         for git_command in git_commands:
           cmd+= "&&" + git_command
+      cmd+= "&&" + "git submodule update --init --depth 1 --recursive --recommend-shallow"
     else:
       cmd = "\n" + "set -x"
       cmd+= "\n" + "git clone %(git_options)s %(remote)s %(where)s"
