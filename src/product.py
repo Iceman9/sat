@@ -1316,9 +1316,11 @@ def check_system_dep(distrib, check_cmd, product_info):
     :param product_info Config: The configuration specific to the product
     :rtype: two dictionnaries for runtime and compile time dependencies with text status
     """
-    runtime_dep={}
-    build_dep={}
 
+    runtime = []
+    build = []
+
+    # Accumulate the packages written in the pyconf.
     if "system_info" in product_info:
 
         sysinfo=product_info.system_info
@@ -1331,31 +1333,44 @@ def check_system_dep(distrib, check_cmd, product_info):
         if check_cmd[0]=="rpm":
             if "rpm" in sysinfo:
                 for pkg in sysinfo.rpm:
-                    runtime_dep[pkg]=src.system.check_system_pkg(check_cmd,pkg)
+                    runtime.append(pkg)
             if "rpm_dev" in sysinfo:
                 for pkg in sysinfo.rpm_dev:
-                    build_dep[pkg]=src.system.check_system_pkg(check_cmd,pkg)
+                    build.append(pkg)
             if additional_sysinfo :
                 if "rpm" in additional_sysinfo:
                     for pkg in additional_sysinfo.rpm:
-                        runtime_dep[pkg]=src.system.check_system_pkg(check_cmd,pkg)
+                        runtime.append(pkg)
                 if "rpm_dev" in additional_sysinfo:
                     for pkg in additional_sysinfo.rpm_dev:
-                        build_dep[pkg]=src.system.check_system_pkg(check_cmd,pkg)
+                        build.append(pkg)
         if check_cmd[0]=="apt" or check_cmd[0]=="dpkg-query":
             if "apt" in sysinfo:
                 for pkg in sysinfo.apt:
-                    runtime_dep[pkg]=src.system.check_system_pkg(check_cmd,pkg)
+                    runtime.append(pkg)
             if "apt_dev" in sysinfo:
                 for pkg in sysinfo.apt_dev:
-                    build_dep[pkg]=src.system.check_system_pkg(check_cmd,pkg)
+                    build.append(pkg)
             if additional_sysinfo :
                 if "apt" in additional_sysinfo:
                     for pkg in additional_sysinfo.apt:
-                        runtime_dep[pkg]=src.system.check_system_pkg(check_cmd,pkg)
+                        runtime.append(pkg)
                 if "apt_dev" in additional_sysinfo:
                     for pkg in additional_sysinfo.apt_dev:
-                        build_dep[pkg]=src.system.check_system_pkg(check_cmd,pkg)
+                        build.append(pkg)
+
+    # Generate the dictionary of OK/KO
+    runtime_dep={_: "OK" for _ in runtime}
+    ok, not_installed = src.system.check_if_packages_are_installed(runtime, distrib)
+    if not ok:
+        for _ in not_installed:
+            runtime_dep[_] = "KO"
+
+    build_dep={_: "OK" for _ in build}
+    ok, not_installed = src.system.check_if_packages_are_installed(build, distrib)
+    if not ok:
+        for _ in not_installed:
+            runtime_dep[_] = "KO"
 
     return runtime_dep,build_dep
 

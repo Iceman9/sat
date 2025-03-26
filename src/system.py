@@ -494,62 +494,65 @@ def get_pkg_check_cmd(dist_name):
                     raise src.SatException(manager_msg_err)
     return cmd_is_package_installed
 
-def check_system_pkg(check_cmd,pkg):
-    '''Check if a package is installed
-    :param check_cmd list: the list of command to use system package manager
-    :param user str: the pkg name to check
-    :rtype: str
-    :return: a string with package name with status un message
-    '''
-    # build command
-    FNULL = open(os.devnull, 'w')
-    cmd_is_package_installed=[]
-    for cmd in check_cmd:
-        cmd_is_package_installed.append(cmd)
-    cmd_is_package_installed.append(pkg)
+def check_if_packages_are_installed(pkgs: list[str], dist: str) -> tuple[bool, list[str]]:
+    """Check if native packages are installed. Based on the argument dist the
+    package managers rpm or apt are checked.
 
+    Arguments:
+        pkgs (list): List of packages to check
+        dist (str): Distribution.
+    """
 
-    if check_cmd[0]=="apt":
-        # special treatment for apt
-        # apt output is too messy for being used
-        # some debian packages have version numbers in their name, we need to add a *
-        # also apt do not return status, we need to use grep
-        # and apt output is too messy for being used 
-        cmd_is_package_installed[-1]+="*" # we don't specify in pyconf the exact name because of version numbers
-        p=SP.Popen(cmd_is_package_installed, stdout=SP.PIPE, stderr=FNULL)
-        try:
-            output = SP.check_output(['grep', pkg], stdin=p.stdout)
-            msg_status=src.printcolors.printcSuccess("OK")
-        except Exception:
-            msg_status=src.printcolors.printcError("KO")
-            msg_status+=" (package is not installed!)\n"
-    elif check_cmd[0] == "dpkg-query":
-        # special treatment for dpkg-query
-        # some debian packages have version numbers in their name, we need to add a *
-        # also dpkg-query do not return status, we need to use grep
-        # and dpkg-query output is too messy for being used
-        cmd_is_package_installed[-1] = (
-            cmd_is_package_installed[-1] + "*"
-        )  # we don't specify in pyconf the exact name because of version numbers
-        p = SP.Popen(cmd_is_package_installed, stdout=SP.PIPE, stderr=FNULL)
-        try:
-            output = SP.check_output(["grep", "-E", "^[ii|ri]"], stdin=p.stdout)
-            msg_status = src.printcolors.printcSuccess("OK")
-        except SP.CalledProcessError:
-            msg_status = src.printcolors.printcError("KO")
-            msg_status += " (package is not installed!)\n"
+    # Rpm
+    if any([_ in dist for _ in ['CO','FD','MG','MD','CO','OS']]):
+        cmd = 'rpm'
+        cmd_args = ["-qa"]
     else:
-        p=SP.Popen(cmd_is_package_installed, stdout=SP.PIPE, stderr=FNULL, env={})
-        output, err = p.communicate()
-        rc = p.returncode
-        if rc==0:
-            msg_status=src.printcolors.printcSuccess("OK")
-            # in python3 output is a byte and should be decoded
-            if isinstance(output, bytes):
-                output = output.decode("utf-8", "ignore")
-            msg_status+=" (" + output.replace('\n',' ') + ")\n" # remove output trailing \n
-        else:
-            msg_status=src.printcolors.printcError("KO")
-            msg_status+=" (package is not installed!)\n"
+        cmd = 'apt'
+        cmd_args = ["list", "--installed"]
 
-    return msg_status
+    return check_system_for_packages(pkgs, cmd, cmd_args)
+
+__cmd_list_cache__: dict[str, str] = {}
+
+def check_system_for_packages(pkgs: list[str], cmd: str, cmd_args: list[str]) -> tuple[bool, list[str]]:
+    """Using the system package manager to obtain a manifest of the installed
+    packages check if the required packages are among them. This is currently
+    not the best way if a name of the package exists as a substring of an
+    installed package. For more accurate ping, define the names of the pacage
+    with additional identifiers or suffixes, like suffix "/" for apt packages,
+    so that the string get's a better match.
+
+    Arguments:
+        pkgs (list): List containing names of packages
+        cmd (str): Package manager command
+        cmd_args (list[str]): List of arguments for the package manager
+
+    Returns:
+        status (bool): Ok if all packages are installed
+        not_found (list): List of packages that were not found.
+    """
+    global __cmd_list_cache__
+
+    if cmd not in __cmd_list_cache__:
+        # Check if command exists!
+        code = SP.call(["which", cmd], stdout=SP.DEVNULL)
+        if code != 0:
+            raise src.SatException("Error: Could not find apt with 'which apt")
+
+        # Regenerate __apt_list_cache
+
+        __cmd_list_cache__[cmd] = str(SP.check_output([cmd, *cmd_args],
+                                                      stderr=SP.DEVNULL))
+    cmd_cache = __cmd_list_cache__[cmd]
+
+    not_found: list[str] = []
+    status: bool = True
+    for pkg in pkgs:
+        # Append slash, in case a package name encapsulates a package we are
+        # checking
+        if f"{pkg}" not in cmd_cache:
+            status = False
+            not_found.append(pkg)
+
+    return status, not_found

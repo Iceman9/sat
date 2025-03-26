@@ -502,7 +502,8 @@ def get_product_sources(config,
     if product_info.get_source == "release":
         return get_source_from_release(config, product_info, source_dir, logger)
 
-    if product_info.get_source == "native":
+    # Check only Linux packages.
+    if product_info.get_source == "native" and not src.architecture.is_windows():
         # for native products we check the corresponding system packages are installed
         logger.write("Native : Checking system packages are installed\n" , 3)
         check_cmd=src.system.get_pkg_check_cmd(config.VARS.dist_name) # (either rmp or apt)
