@@ -80,7 +80,7 @@ def apply_patch(config, product_info, max_product_name_len, logger):
         
         # Check the existence and apply the patch
         if os.path.isfile(patch):
-            patch_cmd = "patch -p1 < %s" % patch
+            patch_cmd = "git apply --ignore-whitespace -p1 < %s" % patch
             
             # Write the command in the terminal if verbose level is at 5
             logger.write(("    >%s\n" % patch_cmd),5)
