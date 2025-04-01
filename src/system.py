@@ -538,10 +538,8 @@ def check_system_for_packages(pkgs: list[str], cmd: str, cmd_args: list[str]) ->
         # Check if command exists!
         code = SP.call(["which", cmd], stdout=SP.DEVNULL)
         if code != 0:
-            raise src.SatException("Error: Could not find apt with 'which apt")
-
-        # Regenerate __apt_list_cache
-
+            raise src.SatException(f"Error: Could not find {cmd} with 'which {cmd}")
+        # Regenerate cache only once.
         __cmd_list_cache__[cmd] = str(SP.check_output([cmd, *cmd_args],
                                                       stderr=SP.DEVNULL))
     cmd_cache = __cmd_list_cache__[cmd]
@@ -549,9 +547,7 @@ def check_system_for_packages(pkgs: list[str], cmd: str, cmd_args: list[str]) ->
     not_found: list[str] = []
     status: bool = True
     for pkg in pkgs:
-        # Append slash, in case a package name encapsulates a package we are
-        # checking
-        if f"{pkg}" not in cmd_cache:
+        if pkg not in cmd_cache:
             status = False
             not_found.append(pkg)
 
